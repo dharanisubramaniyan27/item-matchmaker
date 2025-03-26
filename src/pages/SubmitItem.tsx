@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { 
   Form,
@@ -37,6 +38,7 @@ import * as z from 'zod';
 import { categories, locations } from '@/utils/mockData';
 import { toast } from 'sonner';
 import AnimatedTransition from '@/components/AnimatedTransition';
+import { submitItemToSupabase } from '@/utils/supabaseData';
 
 const formSchema = z.object({
   type: z.enum(['lost', 'found'], {
@@ -71,8 +73,10 @@ type FormValues = z.infer<typeof formSchema>;
 
 const SubmitItem: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -91,6 +95,7 @@ const SubmitItem: React.FC = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -105,6 +110,7 @@ const SubmitItem: React.FC = () => {
     
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -124,26 +130,42 @@ const SubmitItem: React.FC = () => {
 
   const removeImage = () => {
     setImagePreview(null);
+    setImageFile(null);
   };
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Form submitted:', data);
-      console.log('Image:', imagePreview);
+    try {
+      const result = await submitItemToSupabase(data, imageFile);
       
-      // Show success toast
-      toast.success('Item submitted successfully!', {
-        description: 'Your submission has been received and is pending review.',
+      if (result.success) {
+        toast.success('Item submitted successfully!', {
+          description: 'Your submission has been received and is pending review.',
+        });
+        
+        // Reset form
+        form.reset();
+        setImagePreview(null);
+        setImageFile(null);
+        
+        // Navigate to the appropriate items page based on type
+        setTimeout(() => {
+          navigate(data.type === 'lost' ? '/lost-items' : '/found-items');
+        }, 1500);
+      } else {
+        toast.error('Failed to submit item', {
+          description: result.error || 'Please try again later.',
+        });
+      }
+    } catch (error) {
+      console.error('Error submitting item:', error);
+      toast.error('An unexpected error occurred', {
+        description: 'Please try again later.',
       });
-      
-      // Reset form
-      form.reset();
-      setImagePreview(null);
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
 
   return (

@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import SearchFilter from '@/components/SearchFilter';
 import ItemCard from '@/components/ItemCard';
-import { getLostItems, Item } from '@/utils/mockData';
+import { Item } from '@/utils/mockData';
+import { getLostItemsFromSupabase } from '@/utils/supabaseData';
 import AnimatedTransition from '@/components/AnimatedTransition';
 import { Frown } from 'lucide-react';
+import { toast } from 'sonner';
 
 const LostItems: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
@@ -14,15 +16,20 @@ const LostItems: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      const lostItems = getLostItems();
-      setItems(lostItems);
-      setFilteredItems(lostItems);
-      setIsLoading(false);
-    }, 1000);
+    const fetchItems = async () => {
+      try {
+        const lostItems = await getLostItemsFromSupabase();
+        setItems(lostItems);
+        setFilteredItems(lostItems);
+      } catch (error) {
+        console.error('Error fetching lost items:', error);
+        toast.error('Failed to load lost items');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchItems();
   }, []);
 
   const handleSearch = (filters: { 

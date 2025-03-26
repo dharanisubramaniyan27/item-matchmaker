@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import SearchFilter from '@/components/SearchFilter';
 import ItemCard from '@/components/ItemCard';
-import { getFoundItems, Item } from '@/utils/mockData';
+import { Item } from '@/utils/mockData';
+import { getFoundItemsFromSupabase } from '@/utils/supabaseData';
 import AnimatedTransition from '@/components/AnimatedTransition';
 import { Frown } from 'lucide-react';
+import { toast } from 'sonner';
 
 const FoundItems: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
@@ -14,15 +16,20 @@ const FoundItems: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      const foundItems = getFoundItems();
-      setItems(foundItems);
-      setFilteredItems(foundItems);
-      setIsLoading(false);
-    }, 1000);
+    const fetchItems = async () => {
+      try {
+        const foundItems = await getFoundItemsFromSupabase();
+        setItems(foundItems);
+        setFilteredItems(foundItems);
+      } catch (error) {
+        console.error('Error fetching found items:', error);
+        toast.error('Failed to load found items');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchItems();
   }, []);
 
   const handleSearch = (filters: { 
